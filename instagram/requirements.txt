@@ -1,2 +1,4 @@
 pyautogui
 selenium
+openpyxl
+pandas
