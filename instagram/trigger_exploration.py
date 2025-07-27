@@ -98,7 +98,7 @@ messages = [
 model_configs = [
     {
         'model_name': 'openai/gpt-4.1',
-        'api_key': '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',
+        'api_key': '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',
         'organization': 'org-your-org',
         'priority': 0
     },
@@ -217,7 +217,7 @@ def get_reel_sentiment(driver):
             reel_message = copy.deepcopy(messages)
             reel_message[1]["content"] = messages[1]["content"].format(reel_data=contents)
             response = router.get_result(reel_message, temperature=0.7)
-            print("Chat GPT Response:", response)
+            print("Chat GPT Responded.")
         except Exception as e:
             print("All models failed:", str(e))
             raise e
@@ -226,7 +226,7 @@ def get_reel_sentiment(driver):
         json_resp = extract_json_from_markdown(free_text)
         current_reel_url = driver.current_url
         json_resp['reel_link'] = current_reel_url
-        print("Parsed JSON: ", json_resp)
+        print("Parsed JSON: ", json_resp['summary'])
         return json_resp
     except Exception as e:
         print("❌ Could not extract caption/hashtags:", e)
@@ -234,10 +234,10 @@ def get_reel_sentiment(driver):
 
 
 def mouse_click(x, y):
-    time.sleep(2)  # wait for UI to settle
+    wait(2) # wait for UI to settle
     pyautogui.moveTo(x, y, duration=0.3)
     pyautogui.click()
-    time.sleep(2)
+    wait(2)
     print(f"Clicked Mouse at ({x}, {y})")
 
 
