@@ -8,6 +8,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import pyautogui
 import pickle
+import pyperclip
 from openai import OpenAI
 import re
 import os
@@ -20,8 +21,9 @@ import signal
 def save_cookies_and_exit(*args):
     print("💾 Saving cookies before exit...")
     cookies = driver.get_cookies()
-    with open(COOKIE_FILE, "w") as f:
-        json.dump(cookies, f, indent=2)
+    if len(cookies) != 0:
+        with open(COOKIE_FILE, "w") as f:
+            json.dump(cookies, f, indent=2)
     try:
         driver.quit()
     except:
@@ -92,6 +94,12 @@ messages = [
 ]
 model_configs = [
     {
+        'model_name': 'openai/gpt-4.1',
+        'api_key': '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',
+        'organization': 'org-your-org',
+        'priority': 0
+    },
+    {
         'model_name': 'openai/gpt-4o',
         'api_key': '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',
         'organization': 'org-your-org',
@@ -104,10 +112,13 @@ model_configs = [
     }
 ]
 COOKIE_FILE = "cookies.json"
-like_button = {'x': 1070, 'y':602}
-see_more_caption_button = {'x': 900, 'y':833}
-show_comments_button = {'x': 1070, 'y':666}
 
+mouse_position = {
+    "like_button": {'x': 1070, 'y':602},
+    "see_more_caption_button": {'x': 900, 'y':833},
+    "show_comments_button": {'x': 1070, 'y':666},
+    "type_comments": {'x': 1200, 'y':666},
+}
 router = AIModelRouter(model_configs)
 USERNAME = "sakshi.knytt"
 PASSWORD = "Bundilal@12345"
@@ -124,6 +135,7 @@ def extract_mouse_location():
     time.sleep(5)  # Gives you time to move the mouse
     position = pyautogui.position()
     print(f"📍 Mouse is at: {position}")
+    sys.exit(0)
 
 def wait(sec=2):
     time.sleep(sec)
@@ -190,6 +202,8 @@ def extract_json_from_markdown(text):
         raise ValueError(f"Failed to parse JSON: {str(e)}")
 
 def get_reel_sentiment(driver):
+    return  {'summary': "The reel by @divya.singh.30 features a heartfelt, poetic caption ('Saans banke zindagi me ailow...☺️❤️') and is tagged with numerous trending and emotion-oriented hashtags (e.g., #expression, #love, #acting, #viralreels). Audience comments are emotionally expressive and relatable, with users sharing feelings of love, heartbreak, and admiration. Engagement is high, with 4,666 likes and 428K views, indicating strong viral potential. The creator appears to focus on emotionally rich, relatable content that resonates with a wide audience.", 'creator_persona': 'Emotionally expressive, poetic, relatable content creator focused on love and life; appeals to a youthful, sentimental audience.', 'comment_sentiment': 'Supportive, emotional, and highly engaged, with users expressing personal feelings, admiration, and relatability.', 'conversion_likelihood': 'High', 'target_for_outreach': 'both', 'score_out_of_10': 9, 'reel_likes': 4666, 'reel_link': 'https://www.instagram.com/reels/DFo2pW1vShp/', 'creator_profile_link': 'https://www.instagram.com/divya.singh.30/', 'reasoning': "The creator's emotionally driven content aligns well with Knytt's focus on personal connection through texting and video calls. High engagement and viral reach suggest both the creator and their audience are likely to respond positively to outreach. A comment will drive curiosity among viewers, while a DM offers a personal touch for the creator.", 'outreach_strategy': 'both', 'personalized_pitch_message': "Hey Divya! I absolutely loved your reel and the poetic vibe you bring—it's so relatable and heartfelt. I think you'd be a perfect fit for Knytt, a new app where genuine connections happen through texting & video calls. We'd love to have you join our community and even collaborate! Let me know if you'd like to know more. ❤️✨", 'public_comment': 'You always capture those deep feels so beautifully, Divya! 🥺❤️ If you ever wanted to connect with your audience even more personally, you should totally check out @knyttofficial — feels like the next chapter to all these emotions! ✨'}
+
     try:
         main_div = driver.find_element(By.XPATH, '//main/div[1]')
         spans = main_div.find_elements(By.XPATH, './/span')
@@ -207,9 +221,9 @@ def get_reel_sentiment(driver):
 
         free_text = response
         json_resp = extract_json_from_markdown(free_text)
-        print("Parsed JSON: ", json_resp)
         current_reel_url = driver.current_url
         json_resp['reel_link'] = current_reel_url
+        print("Parsed JSON: ", json_resp)
         return json_resp
     except Exception as e:
         print("❌ Could not extract caption/hashtags:", e)
@@ -254,8 +268,49 @@ def scroll_to_next_reel():
     actions.send_keys(Keys.ARROW_DOWN).perform()
     wait(3)
 
+def comment_or_send_message(reel_data):
+    # reel_data
+    public_comment = reel_data.get("public_comment")
+    personalized_pitch_message = reel_data.get("personalized_pitch_message")
+    print(f"Public comment: {public_comment}")
+    print(f"Personalised Pitch Message: {personalized_pitch_message}")
+    try:
+        if public_comment:
+            mouse_click(mouse_position['show_comments_button']['x'], mouse_position['show_comments_button']['y'])
+            wait(3)
+            mouse_click(mouse_position['type_comments']['x'], mouse_position['type_comments']['y'])
+            wait(2)
+
+            ## Paste in comment box
+            pyperclip.copy(public_comment)
+            actions.key_down(Keys.COMMAND).send_keys('v').key_up(Keys.COMMAND).perform()
+            print("Public comment copied to clipboard.", public_comment)
+            wait(3)
+            ## Send
+            post_button = driver.find_element(By.XPATH, "//div[@role='button' and text()='Post']")
+            post_button.click()
+            wait(3)
+            mouse_click(mouse_position['type_comments']['x'], mouse_position['type_comments']['y'] + 100)
+        if personalized_pitch_message:
+            driver.find_element(By.XPATH, "//textarea").send_keys(personalized_pitch_message)
+            driver.find_element(By.XPATH, "//button[text()='Send']").click()
+            wait(3)
+        else:
+            print("No personalized pitch message found.")
+    except Exception as e:
+        print("Could not send message or comment:", e)
+
+def click_on_caption_more_button():
+    try:
+        more_button = driver.find_element(By.XPATH, "//span[@aria-hidden='true' and text()='more']")
+        more_button.click()
+        wait(3)
+    except Exception as e:
+        print("Could not click on caption more button:", e)
+
 if __name__ == "__main__":
     # Run
+    #extract_mouse_location()
     login()
     driver.get("https://www.instagram.com/reels/")
     wait(5)
@@ -268,18 +323,16 @@ if __name__ == "__main__":
             wait(2)
             continue
 
-        #mouse_click(like_button['x'], like_button['y'])
-        mouse_click(see_more_caption_button['x'], see_more_caption_button['y'])
+        #mouse_click(mouse_position['like_button']['x'], mouse_position['like_button']['y'])
+        click_on_caption_more_button()
         reel_data = get_reel_sentiment(driver)
         if reel_data.get("score_out_of_10", 0) >= 8:
             print("Reaching out as score is above 8.")
             persist_in_excel(reel_data)
+            comment_or_send_message(reel_data)
         else:
             print("Skipping as score is below 8.", reel_data)
-
         processed_reel[driver.current_url] = True
-
-        # mouse_click(show_comments_button['x'], show_comments_button['y'])
         # extract_top_level_comments(driver)
         scroll_to_next_reel()
     driver.quit()
