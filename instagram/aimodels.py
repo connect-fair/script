@@ -70,7 +70,7 @@ class AIModelRouter:
                 }
 
             except RateLimitError as e:
-                self.logger.warning(f"Rate limit hit for {current_config['model_name']}")
+                self.logger.warning(f"Rate limit hit for {current_config['model_name']}", e)
                 last_error = e
                 if not self._rotate_model():
                     break

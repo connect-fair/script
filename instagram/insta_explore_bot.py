@@ -16,6 +16,25 @@ import copy
 import sys
 import signal
 
+# === Function to save cookies ===
+def save_cookies_and_exit(*args):
+    print("💾 Saving cookies before exit...")
+    cookies = driver.get_cookies()
+    with open(COOKIE_FILE, "w") as f:
+        json.dump(cookies, f, indent=2)
+    try:
+        driver.quit()
+    except:
+        pass
+    sys.exit(0)
+
+# === Register cleanup handlers ===
+signal.signal(signal.SIGINT, save_cookies_and_exit)   # Ctrl+C
+signal.signal(signal.SIGTERM, save_cookies_and_exit)  # kill
+# Optional: exit hook
+import atexit
+atexit.register(save_cookies_and_exit)
+
 # Configure your models (in practice, load from config/environment)
 messages = [
             {
@@ -85,21 +104,11 @@ model_configs = [
     }
 ]
 COOKIE_FILE = "cookies.json"
-
-router = AIModelRouter(model_configs)
-
-
-# print("🖱️ Move your mouse over the Like button in the next 5 seconds...")
-#
-# time.sleep(5)  # Gives you time to move the mouse
-#
-# position = pyautogui.position()
-# print(f"📍 Mouse is at: {position}")
-
 like_button = {'x': 1070, 'y':602}
 see_more_caption_button = {'x': 900, 'y':833}
 show_comments_button = {'x': 1070, 'y':666}
 
+router = AIModelRouter(model_configs)
 USERNAME = "sakshi.knytt"
 PASSWORD = "Bundilal@12345"
 MAX_REELS = 100  # how many reels you want to like
@@ -108,29 +117,16 @@ MAX_REELS = 100  # how many reels you want to like
 options = Options()
 options.add_argument("--start-maximized")
 driver = webdriver.Chrome(options=options)
-
 actions = ActionChains(driver)
+
+def extract_mouse_location():
+    print("🖱️ Move your mouse over the Like button in the next 5 seconds...")
+    time.sleep(5)  # Gives you time to move the mouse
+    position = pyautogui.position()
+    print(f"📍 Mouse is at: {position}")
 
 def wait(sec=2):
     time.sleep(sec)
-
-# === Function to save cookies ===
-def save_cookies_and_exit(*args):
-    print("💾 Saving cookies before exit...")
-    cookies = driver.get_cookies()
-    with open(COOKIE_FILE, "w") as f:
-        json.dump(cookies, f, indent=2)
-    try:
-        driver.quit()
-    except:
-        pass
-    sys.exit(0)
-# === Register cleanup handlers ===
-signal.signal(signal.SIGINT, save_cookies_and_exit)   # Ctrl+C
-signal.signal(signal.SIGTERM, save_cookies_and_exit)  # kill
-# Optional: exit hook
-import atexit
-atexit.register(save_cookies_and_exit)
 
 def login():
     URL = "https://www.instagram.com/"
