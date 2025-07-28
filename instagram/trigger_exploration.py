@@ -62,7 +62,7 @@ messages = [
                     - 'reel_likes': measure of reach and viral potential
                     - 'reel_link': must be included in output JSON for future reference
 
-                    **Output this exact JSON, the Output MUST only contain below JSON and no other free text:**
+                    **Output this exact JSON, the Output MUST only contain below JSON and no other free text, out put should be parsable by python json parser**
                     {
                       "summary": string,
                       "creator_persona": string,
@@ -155,6 +155,31 @@ def login():
         except:
             pass
 
+def remove_json_comments(json_str: str) -> str:
+    # Remove // comments that are NOT part of http:// or https://
+    json_str = re.sub(r'(?<!http:)(?<!https:)//.*?(?=\n|$)', '', json_str)
+
+    # Remove /* block comments */
+    json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
+
+    return json_str.strip()
+
+def strip_non_ascii_json(input_str):
+    # Replace smart quotes with ASCII equivalents
+    replacements = {
+        '“': '"', '”': '"',
+        '‘': "'", '’': "'"
+    }
+    for smart, ascii_equiv in replacements.items():
+        input_str = input_str.replace(smart, ascii_equiv)
+
+    # Remove all non-ASCII characters
+    input_str = input_str.encode('ascii', 'ignore').decode('ascii')
+
+    # Remove control characters (except newline, tab, carriage return)
+    input_str = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', input_str)
+
+    return input_str
 
 def extract_json_from_markdown(text):
     """
@@ -167,6 +192,8 @@ def extract_json_from_markdown(text):
         json_str = json_match.group(1).strip()
     else:
         json_str = text
+
+    print("Cleaned JSON 1-", json_str)
 
     # Step 2: Convert single-quoted JSON to valid JSON
     # --- Phase 1: Convert keys ---
@@ -183,10 +210,17 @@ def extract_json_from_markdown(text):
         json_str
     )
 
+    # --- Phase 3: Remove comments
+    json_str = remove_json_comments(json_str)
+
+    # --- Phase 4: Remove or replace unicodes.
+    json_str = strip_non_ascii_json(json_str)
+
     # Step 3: Parse the fixed JSON
     try:
         return json.loads(json_str)
     except json.JSONDecodeError as e:
+        print(f"Error parsing json_str {json_str}")
         raise ValueError(f"Failed to parse JSON: {str(e)}")
 
 
@@ -232,7 +266,7 @@ def get_explorer_post_sentiment(driver):
             reel_message = copy.deepcopy(messages)
             reel_message[1]["content"] = messages[1]["content"].format(reel_data=contents)
             response = router.get_result(reel_message, temperature=0.7)
-            print("Chat GPT Responded.")
+            print("Chat GPT Responded.", response)
         except Exception as e:
             print("All models failed:", str(e))
             raise e
@@ -344,11 +378,8 @@ def comment_or_send_message_in_explorer_post(driver, post_data):
             post_button = driver.find_element(By.XPATH, "//div[@role='button' and text()='Post']")
             post_button.click()
             wait(3)
-            mouse_click(mouse_position['type_comments']['x'], mouse_position['type_comments']['y'] + 100)
         if personalized_pitch_message:
             print("Sending personalized pitch message not implemented yet. Skipping for now...")
-        else:
-            print("No personalized pitch message found.")
     except Exception as e:
         print("Could not send message or comment:", e)
 
@@ -373,7 +404,7 @@ def start_explore_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@1234
         print(f"\n📽️ Explorer  {i + 1}/{MAX_REELS}")
 
         post_data = get_explorer_post_sentiment(driver)
-        if post_data.get("score_out_of_10", 0) >= 2:
+        if post_data.get("score_out_of_10", 0) >= 8:
             print("Reaching out as score is above 8.")
             persist_in_excel(post_data)
             comment_or_send_message_in_explorer_post(driver, post_data)

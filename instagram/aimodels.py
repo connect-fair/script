@@ -30,6 +30,7 @@ class AIModelRouter:
 
     def _rotate_model(self) -> bool:
         """Move to next available model, return True if successful"""
+        self.logger.info(f"Rotate model from {self.models[self.current_model_index]['model_name']}")
         if self.current_model_index + 1 < len(self.models):
             self.current_model_index += 1
             self.logger.info(f"Rotating to model {self.models[self.current_model_index]['model_name']}")
