@@ -1,4 +1,5 @@
-from trigger_exploration import start_reel_exploring, start_explore_exploring
+from reel_page_scroll import start_reel_exploring
+from explorer_page_scroll import start_explore_exploring
 # import threading
 
 if __name__ == "__main__":
