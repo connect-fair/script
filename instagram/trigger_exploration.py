@@ -16,6 +16,8 @@ from aimodels import AIModelRouter
 import copy
 import sys
 import signal
+from aimodelsconfig import model_configs
+from selenium.common.exceptions import StaleElementReferenceException
 
 
 # === Function to save cookies ===
@@ -95,28 +97,10 @@ messages = [
                     {reel_data}"""
     }
 ]
-model_configs = [
-    {
-        'model_name': 'openai/gpt-4.1',
-        'api_key': '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',
-        'organization': 'org-your-org',
-        'priority': 0
-    },
-    {
-        'model_name': 'openai/gpt-4o',
-        'api_key': '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',
-        'organization': 'org-your-org',
-        'priority': 1
-    },
-    {
-        'model_name': 'deepseek/DeepSeek-V3-0324',
-        'api_key': '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',
-        'priority': 2
-    }
-]
 COOKIE_FILE = "cookies.json"
 
 mouse_position = {
+    "explore_first_post": {'x': 500, 'y': 300},
     "like_button": {'x': 1070, 'y': 602},
     "see_more_caption_button": {'x': 900, 'y': 833},
     "show_comments_button": {'x': 1070, 'y': 666},
@@ -209,8 +193,8 @@ def extract_json_from_markdown(text):
 def get_reel_sentiment(driver):
     try:
         main_div = driver.find_element(By.XPATH, '//main/div[1]')
-        spans = main_div.find_elements(By.XPATH, './/span')
-        contents = [s.text.strip() for s in spans if s.text.strip()]
+        # spans = main_div.find_elements(By.XPATH, './/span')
+        # contents = [s.text.strip() for s in spans if s.text.strip()]
         contents = main_div.text
         # Get result with automatic fallback
         try:
@@ -230,6 +214,37 @@ def get_reel_sentiment(driver):
         return json_resp
     except Exception as e:
         print("❌ Could not extract caption/hashtags:", e)
+        return {}
+
+def get_explorer_post_sentiment(driver):
+    try:
+        # Find the article with role="presentation"
+        article = driver.find_element(
+            By.CSS_SELECTOR,
+            "article[role='presentation']"
+        )
+
+        # Find the <ul> inside this article
+        main_div = article.find_element(By.TAG_NAME, "ul")  # if only one <ul>
+        contents = main_div.text
+        # Get result with automatic fallback
+        try:
+            reel_message = copy.deepcopy(messages)
+            reel_message[1]["content"] = messages[1]["content"].format(reel_data=contents)
+            response = router.get_result(reel_message, temperature=0.7)
+            print("Chat GPT Responded.")
+        except Exception as e:
+            print("All models failed:", str(e))
+            raise e
+
+        free_text = response
+        json_resp = extract_json_from_markdown(free_text)
+        current_reel_url = driver.current_url
+        json_resp['reel_link'] = current_reel_url
+        print("Parsed JSON: ", json_resp['summary'])
+        return json_resp
+    except Exception as e:
+        print("❌Could not find article:", e)
         return {}
 
 
@@ -274,6 +289,9 @@ def scroll_to_next_reel():
     actions.send_keys(Keys.ARROW_DOWN).perform()
     wait(3)
 
+def swipe_to_next_post():
+    actions.send_keys(Keys.ARROW_RIGHT).perform()
+    wait(3)
 
 def comment_or_send_message(reel_data):
     # reel_data
@@ -305,6 +323,35 @@ def comment_or_send_message(reel_data):
     except Exception as e:
         print("Could not send message or comment:", e)
 
+def comment_or_send_message_in_explorer_post(driver, post_data):
+    # reel_data
+    public_comment = post_data.get("public_comment")
+    personalized_pitch_message = post_data.get("personalized_pitch_message")
+    print(f"Public comment: {public_comment}")
+    print(f"Personalised Pitch Message: {personalized_pitch_message}")
+    try:
+        if public_comment:
+            ## Paste in comment box
+            comment_box = driver.find_element(
+                By.XPATH,
+                "//textarea[@aria-label='Add a comment…' and @placeholder='Add a comment…']"
+            )
+            comment_box.click()
+            pyperclip.copy(public_comment)
+            actions.key_down(Keys.COMMAND).send_keys('v').key_up(Keys.COMMAND).perform()
+            wait(3)
+            ## Send
+            post_button = driver.find_element(By.XPATH, "//div[@role='button' and text()='Post']")
+            post_button.click()
+            wait(3)
+            mouse_click(mouse_position['type_comments']['x'], mouse_position['type_comments']['y'] + 100)
+        if personalized_pitch_message:
+            print("Sending personalized pitch message not implemented yet. Skipping for now...")
+        else:
+            print("No personalized pitch message found.")
+    except Exception as e:
+        print("Could not send message or comment:", e)
+
 
 def click_on_caption_more_button():
     try:
@@ -314,8 +361,30 @@ def click_on_caption_more_button():
     except Exception as e:
         print("Could not click on caption more button:", e)
 
+def start_explore_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@12345"):
+    # Run
+    # extract_mouse_location()
+    login()
+    driver.get("https://www.instagram.com/explore/")
+    wait(5)
+    processed_reel = {}
+    mouse_click(mouse_position['explore_first_post']['x'], mouse_position['explore_first_post']['y'])
+    for i in range(MAX_REELS):
+        print(f"\n📽️ Explorer  {i + 1}/{MAX_REELS}")
 
-def start_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@12345"):
+        post_data = get_explorer_post_sentiment(driver)
+        if post_data.get("score_out_of_10", 0) >= 2:
+            print("Reaching out as score is above 8.")
+            persist_in_excel(post_data)
+            comment_or_send_message_in_explorer_post(driver, post_data)
+        else:
+            print("Skipping as score is below 8.", post_data)
+        processed_reel[driver.current_url] = True
+        # extract_top_level_comments(driver)
+        swipe_to_next_post()
+    driver.quit()
+
+def start_reel_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@12345"):
     # Run
     # extract_mouse_location()
     login()
