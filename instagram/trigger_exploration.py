@@ -18,6 +18,7 @@ import sys
 import signal
 from aimodelsconfig import model_configs
 from selenium.common.exceptions import StaleElementReferenceException
+from json_repair import repair_json
 
 
 # === Function to save cookies ===
@@ -51,6 +52,7 @@ messages = [
                     - Grow the Knytt app user base: iOS (https://apps.apple.com/in/app/knytt/id6744828805), Android (https://play.google.com/store/apps/details?id=com.weknytt&hl=en_IN)
                     - Improve reach and curiosity around the Instagram page @knyttofficial
                     - Make all outreach (comments or DMs) feel natural, human, and contextual — not robotic or spammy
+                    - Ensure you mainly target indian users as knytt is only supported in india as of now. 
 
                     **Commenting Strategy:**
                     - If the reel is emotionally rich or relatable, commenting may attract more audience engagement
@@ -100,7 +102,7 @@ messages = [
 COOKIE_FILE = "cookies.json"
 
 mouse_position = {
-    "explore_first_post": {'x': 500, 'y': 300},
+    "explore_first_post": {'x': 1200, 'y': 300},
     "like_button": {'x': 1070, 'y': 602},
     "see_more_caption_button": {'x': 900, 'y': 833},
     "show_comments_button": {'x': 1070, 'y': 666},
@@ -181,19 +183,29 @@ def strip_non_ascii_json(input_str):
 
     return input_str
 
-def extract_json_from_markdown(text):
-    """
-    Extracts JSON between ```json and ```, safely converts single quotes to double quotes,
-    and returns a Python dictionary.
-    """
+def extract_json_string(text):
     # Step 1: Extract the JSON block
     json_match = re.search(r'```json(.*?)```', text, re.DOTALL)
     if json_match:
         json_str = json_match.group(1).strip()
     else:
         json_str = text
+    return json_str
 
-    print("Cleaned JSON 1-", json_str)
+def repair_bad_json(text):
+    good_json_string = repair_json(text)
+    try:
+        return json.loads(good_json_string)
+    except json.JSONDecodeError as e:
+        print(f"Error parsing json_str {text}")
+        raise ValueError(f"Failed to parse JSON: {str(e)}")
+
+def extract_json_from_markdown(text):
+    """
+    Extracts JSON between ```json and ```, safely converts single quotes to double quotes,
+    and returns a Python dictionary.
+    """
+    json_str = extract_json_string(text)
 
     # Step 2: Convert single-quoted JSON to valid JSON
     # --- Phase 1: Convert keys ---
@@ -272,7 +284,7 @@ def get_explorer_post_sentiment(driver):
             raise e
 
         free_text = response
-        json_resp = extract_json_from_markdown(free_text)
+        json_resp = repair_bad_json(free_text)
         current_reel_url = driver.current_url
         json_resp['reel_link'] = current_reel_url
         print("Parsed JSON: ", json_resp['summary'])
@@ -404,8 +416,8 @@ def start_explore_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@1234
         print(f"\n📽️ Explorer  {i + 1}/{MAX_REELS}")
 
         post_data = get_explorer_post_sentiment(driver)
-        if post_data.get("score_out_of_10", 0) >= 8:
-            print("Reaching out as score is above 8.")
+        if post_data.get("score_out_of_10", 0) >= 7:
+            print("Reaching out as score is above 7.")
             persist_in_excel(post_data)
             comment_or_send_message_in_explorer_post(driver, post_data)
         else:
