@@ -16,5 +16,4 @@ mistral = ['mistral-ai/Ministral-3B', 'mistral-ai/Mistral-Large-2411', 'mistral-
 jais = ['core42/jais-30b-chat']
 
 models = models_openai + deepseek + models_msft + llama + grok + ai21jamba + codestral + cohere + mistral + jais
-models = grok
 model_configs = [{"model_name": model, "api_key": api_key, "priority": index} for index, model in enumerate(models)]
