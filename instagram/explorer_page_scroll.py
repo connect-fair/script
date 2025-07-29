@@ -3,6 +3,9 @@ from selenium.webdriver.common.keys import Keys
 import pyperclip
 import copy
 from utils import *
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 def get_explorer_post_sentiment(driver):
     try:
@@ -35,9 +38,21 @@ def get_explorer_post_sentiment(driver):
         print("❌Could not find article:", e)
         return {}
 
-def swipe_to_next_post():
-    actions.send_keys(Keys.ARROW_RIGHT).perform()
-    wait(3)
+def swipe_to_next_post(driver):
+    wait(2)
+    print("Swiping to the next post...")
+
+    try:
+        # Wait for the Next button SVG by its title
+        # next_button = WebDriverWait(driver, 5).until(
+        #     EC.element_to_be_clickable((By.XPATH, "//svg[@aria-label='Next' and @role='img']/ancestor::button"))
+        # )
+        next_button = driver.find_element(By.CSS_SELECTOR, 'button[type="button"] svg[aria-label="Next"]')
+        next_button.click()
+        wait(2)
+        print("Moved to next post.")
+    except Exception as e:
+        print(f"Error swiping to next post: {e}")
 
 def comment_or_send_message_in_explorer_post(driver, post_data):
     # reel_data
@@ -85,6 +100,5 @@ def start_explore_exploring():
         else:
             print("Skipping as score is below 8.", post_data)
         processed_reel[driver.current_url] = True
-        # extract_top_level_comments(driver)
-        swipe_to_next_post()
+        swipe_to_next_post(driver)
     driver.quit()
