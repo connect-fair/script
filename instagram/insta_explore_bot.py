@@ -17,4 +17,4 @@ if __name__ == "__main__":
     #     thread.join()
     #
     # print("All threads have finished execution")
-    start_explore_exploring("sakshi.knytt", "Bundilal@12345")
+    start_explore_exploring()

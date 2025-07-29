@@ -65,17 +65,18 @@ def comment_or_send_message_in_explorer_post(driver, post_data):
     except Exception as e:
         print("Could not send message or comment:", e)
 
-def start_explore_exploring(USERNAME = "sakshi.knytt", PASSWORD = "Bundilal@12345"):
+def post_login_steps():
+    mouse_click(mouse_position['explore_first_post']['x'], mouse_position['explore_first_post']['y'])
+
+def start_explore_exploring():
     # Run
     # extract_mouse_location()
-    login()
-    driver.get("https://www.instagram.com/explore/")
-    wait(5)
+    explorer_page_link = "https://www.instagram.com/explore/"
+    login(explorer_page_link, post_login_steps)
     processed_reel = {}
-    mouse_click(mouse_position['explore_first_post']['x'], mouse_position['explore_first_post']['y'])
     for i in range(MAX_REELS):
         print(f"\n📽️ Explorer  {i + 1}/{MAX_REELS}")
-
+        switch_user_if_needed(driver, explorer_page_link, post_login_steps)
         post_data = get_explorer_post_sentiment(driver)
         if post_data.get("score_out_of_10", 0) >= 7:
             print("Reaching out as score is above 7.")

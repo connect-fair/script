@@ -13,30 +13,32 @@ from aimodels import AIModelRouter
 import sys
 import signal
 from aimodelsconfig import model_configs
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
 from json_repair import repair_json
-
-# === Function to save cookies ===
-def save_cookies_and_exit(*args):
-    print("💾 Saving cookies before exit...")
-    cookies = driver.get_cookies()
-    if len(cookies) != 0:
-        with open(COOKIE_FILE, "w") as f:
-            json.dump(cookies, f, indent=2)
-    try:
-        driver.quit()
-    except:
-        pass
-    sys.exit(0)
+from selenium.webdriver.common.by import By
 
 
-# === Register cleanup handlers ===
-signal.signal(signal.SIGINT, save_cookies_and_exit)  # Ctrl+C
-signal.signal(signal.SIGTERM, save_cookies_and_exit)  # kill
-# Optional: exit hook
-import atexit
-
-atexit.register(save_cookies_and_exit)
+# # === Function to save cookies ===
+# def save_cookies_and_exit(*args):
+#     print("💾 Saving cookies before exit...")
+#     cookies = driver.get_cookies()
+#     if len(cookies) != 0:
+#         with open(COOKIE_FILE, "w") as f:
+#             json.dump(cookies, f, indent=2)
+#     try:
+#         driver.quit()
+#     except:
+#         pass
+#     sys.exit(0)
+#
+#
+# # === Register cleanup handlers ===
+# signal.signal(signal.SIGINT, save_cookies_and_exit)  # Ctrl+C
+# signal.signal(signal.SIGTERM, save_cookies_and_exit)  # kill
+# # Optional: exit hook
+# import atexit
+#
+# atexit.register(save_cookies_and_exit)
 
 # Configure your models (in practice, load from config/environment)
 messages = [
@@ -96,6 +98,8 @@ messages = [
 ]
 COOKIE_FILE = "cookies.json"
 
+usernames = ["sakshi.knytt", "mayank.knytt" ]
+current_user_index = -1
 mouse_position = {
     "explore_first_post": {'x': 1200, 'y': 300},
     "like_button": {'x': 1070, 'y': 602},
@@ -112,6 +116,16 @@ options.add_argument("--start-maximized")
 driver = webdriver.Chrome(options=options)
 actions = ActionChains(driver)
 
+
+def switch_user_if_needed(driver, post_login_url, post_login_steps):
+    text_to_find = "We limit how often you can do certain things on Instagram"
+    try:
+        element = driver.find_element(By.XPATH, f"//span[contains(text(), {repr(text_to_find)})]")
+        print(f"Switching user as rate limit reached for {usernames[current_user_index]}")
+        login(post_login_url, post_login_steps)
+    except Exception as e:
+        print(f"User {usernames[current_user_index]} is valid to proceed.")
+    return
 
 def persist_in_excel(json_data):
     """
@@ -158,21 +172,35 @@ def extract_mouse_location():
 def wait(sec=2):
     time.sleep(sec)
 
-def login():
+def next_user_index():
+    global current_user_index
+    if current_user_index + 1 >= len(usernames):
+        current_user_index = 0
+    else:
+        current_user_index = current_user_index + 1
+    return current_user_index
+
+def login(post_login_url, post_login_steps = None):
     URL = "https://www.instagram.com/"
     driver.get(URL)
     wait(3)
+    username = usernames[next_user_index()]
+    driver.delete_all_cookies()
+    print(f"Logging in user {username}.")
     # Load existing cookies (if any)
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r") as f:
-            cookies = json.load(f)
+            all_cookies = json.load(f)
+            cookies = all_cookies[username]
             for cookie in cookies:
                 try:
                     driver.add_cookie(cookie)
                 except Exception as e:
                     print(f"⚠️ Could not add cookie {cookie['name']}: {e}")
-    driver.get(URL)
+    driver.get(post_login_url)
     wait(5)
+    if post_login_steps:
+        post_login_steps()
     # driver.find_element(By.NAME, "username").send_keys(USERNAME)
     # driver.find_element(By.NAME, "password").send_keys(PASSWORD + Keys.ENTER)
     # wait(5)
