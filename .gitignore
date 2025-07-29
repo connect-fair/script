@@ -1,0 +1,6 @@
+.idea
+.DS_Store
+*.py[cod]   # Covers .pyc, .pyo, .pyd
+__pycache__/
+.venv/      # Also ignoring your virtualenv (recommended)
+*.xlsx      # Add if you want to ignore Excel files too
